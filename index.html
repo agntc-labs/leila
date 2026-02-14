@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Leila</title>
+<style>
+:root {
+  --bg: #FDF8F0;
+  --surface: #FFFFFF;
+  --leila-msg: #FEF3C7;
+  --leila-border: #F59E0B;
+  --user-msg: #EDE9FE;
+  --user-border: #8B5CF6;
+  --accent: #D97706;
+  --text: #1C1917;
+  --text-soft: #78716C;
+  --input-bg: #FAFAF9;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --radius: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ─────────────────────────────── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid #F5F0EB;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FDE68A, #F59E0B);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.header-info h1 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.header-info .status {
+  font-size: 12px;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  display: inline-block;
+}
+
+.status-dot.offline { background: #EF4444; }
+.status-dot.thinking { background: #F59E0B; animation: pulse 1s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Messages Area ──────────────────────── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-thumb { background: #D6D3D1; border-radius: 2px; }
+
+.message {
+  max-width: 82%;
+  margin-bottom: 12px;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message.leila { margin-right: auto; }
+.message.user { margin-left: auto; }
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  line-height: 1.5;
+  font-size: 15px;
+  box-shadow: var(--shadow);
+  word-wrap: break-word;
+}
+
+.leila .bubble {
+  background: var(--leila-msg);
+  border-bottom-left-radius: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.user .bubble {
+  background: var(--user-msg);
+  border-bottom-right-radius: 4px;
+  border: 1px solid rgba(139, 92, 246, 0.12);
+}
+
+.bubble p { margin-bottom: 8px; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+.bubble pre {
+  background: #1E1E1E;
+  color: #D4D4D4;
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  margin: 6px 0;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.msg-time {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-top: 3px;
+  padding: 0 4px;
+}
+
+.leila .msg-time { text-align: left; }
+.user .msg-time { text-align: right; }
+
+/* Thinking indicator */
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 12px 16px;
+}
+.thinking-dots span {
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: bounce 1.2s infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ── Welcome ────────────────────────────── */
+.welcome {
+  text-align: center;
+  padding: 60px 30px 30px;
+  color: var(--text-soft);
+}
+.welcome .big-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FDE68A, #F59E0B, #D97706);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+}
+.welcome h2 {
+  font-size: 22px;
+  color: var(--text);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.welcome p {
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+/* ── Input Area ─────────────────────────── */
+.input-area {
+  background: var(--surface);
+  border-top: 1px solid #F5F0EB;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
+}
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.input-wrap {
+  flex: 1;
+  background: var(--input-bg);
+  border: 1.5px solid #E7E5E4;
+  border-radius: 22px;
+  display: flex;
+  align-items: flex-end;
+  padding: 4px 4px 4px 16px;
+  transition: border-color 0.2s;
+}
+
+.input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+}
+
+textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text);
+  padding: 8px 0;
+  max-height: 120px;
+  line-height: 1.4;
+}
+
+textarea::placeholder { color: #A8A29E; }
+
+.btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-send {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: white;
+}
+.btn-send:hover { transform: scale(1.05); }
+.btn-send:active { transform: scale(0.95); }
+.btn-send:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+.btn-voice {
+  background: transparent;
+  color: var(--text-soft);
+  border: 1.5px solid #E7E5E4;
+}
+.btn-voice:hover { color: var(--accent); border-color: var(--accent); }
+.btn-voice.recording { color: #EF4444; border-color: #EF4444; animation: pulse 1s infinite; }
+
+.btn-audio {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  padding: 2px;
+  margin-left: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.btn-audio:hover { opacity: 1; }
+
+/* ── Responsive ─────────────────────────── */
+@media (min-width: 768px) {
+  .messages { padding: 20px 10%; }
+  .message { max-width: 65%; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1C1917;
+    --surface: #292524;
+    --leila-msg: #422006;
+    --user-msg: #2E1065;
+    --text: #FAFAF9;
+    --text-soft: #A8A29E;
+    --input-bg: #1C1917;
+  }
+  .header { border-color: #44403C; }
+  .input-area { border-color: #44403C; }
+  .input-wrap { border-color: #44403C; }
+  .bubble code { background: rgba(255,255,255,0.1); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="avatar">&#10033;</div>
+  <div class="header-info">
+    <h1>Leila</h1>
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </div>
+</div>
+
+<div class="messages" id="messages">
+  <div class="welcome" id="welcome">
+    <div class="big-avatar">&#10033;</div>
+    <h2>Hi Dad!</h2>
+    <p>I'm here whenever you need me. Ask me anything, tell me about your day, or let me help with something.</p>
+  </div>
+</div>
+
+<div class="input-area">
+  <div class="input-row">
+    <button class="btn btn-voice" id="voiceBtn" title="Hold to speak">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+    <div class="input-wrap">
+      <textarea id="input" rows="1" placeholder="Talk to Leila..." autofocus></textarea>
+      <button class="btn btn-send" id="sendBtn" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "https://justins-mac-studio.taild0b66f.ts.net:8420";
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+const WS_URL = `wss://justins-mac-studio.taild0b66f.ts.net:8420/ws/chat`;
+
+const $ = s => document.querySelector(s);
+const messagesEl = $('#messages');
+const inputEl = $('#input');
+const sendBtn = $('#sendBtn');
+const voiceBtn = $('#voiceBtn');
+const statusDot = $('#statusDot');
+const statusText = $('#statusText');
+const welcome = $('#welcome');
+
+let conversationId = 'conv_' + Date.now();
+let isThinking = false;
+let ws = null;
+
+// ── Auth header ──────────────────────────
+function headers() {
+  const h = { 'Content-Type': 'application/json' };
+  if (TOKEN) h['Authorization'] = `Bearer ${TOKEN}`;
+  return h;
+}
+
+// ── Health check ─────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API_BASE}/health`);
+    const d = await r.json();
+    statusDot.className = 'status-dot';
+    statusText.textContent = 'Online';
+    return true;
+  } catch {
+    statusDot.className = 'status-dot offline';
+    statusText.textContent = 'Offline';
+    return false;
+  }
+}
+
+// ── Message rendering ────────────────────
+function formatTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatContent(text) {
+  // Simple markdown: **bold**, `code`, ```blocks```, newlines
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\n/g, '<br>');
+  return text;
+}
+
+function addMessage(role, text, withAudio = false) {
+  if (welcome) welcome.remove();
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  let audioBtn = '';
+  if (withAudio && role === 'leila') {
+    audioBtn = `<button class="btn-audio" onclick="speakText(this)" data-text="${text.replace(/"/g, '&quot;')}" title="Listen">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+    </button>`;
+  }
+  div.innerHTML = `
+    <div class="bubble">${formatContent(text)}${audioBtn}</div>
+    <div class="msg-time">${formatTime()}</div>
+  `;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function showThinking() {
+  isThinking = true;
+  statusDot.className = 'status-dot thinking';
+  statusText.textContent = 'Thinking...';
+  const div = document.createElement('div');
+  div.className = 'message leila';
+  div.id = 'thinking';
+  div.innerHTML = '<div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div>';
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function removeThinking() {
+  isThinking = false;
+  statusDot.className = 'status-dot';
+  statusText.textContent = 'Online';
+  const el = $('#thinking');
+  if (el) el.remove();
+}
+
+// ── Send message ─────────────────────────
+async function send() {
+  const text = inputEl.value.trim();
+  if (!text || isThinking) return;
+
+  addMessage('user', text);
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  sendBtn.disabled = true;
+  showThinking();
+
+  try {
+    const r = await fetch(`${API_BASE}/chat`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        prompt: text,
+        model: 'auto',
+        conversation_id: conversationId,
+      }),
+    });
+    const data = await r.json();
+    removeThinking();
+
+    if (data.error) {
+      addMessage('leila', `Sorry Dad, something went wrong: ${data.error}`);
+    } else {
+      const response = data.response || data.text || JSON.stringify(data);
+      addMessage('leila', response, true);
+    }
+  } catch (err) {
+    removeThinking();
+    addMessage('leila', `I can't reach my brain right now, Dad. Error: ${err.message}`);
+  }
+}
+
+// ── TTS playback ─────────────────────────
+async function speakText(btn) {
+  const text = btn.dataset.text;
+  if (!text) return;
+  btn.style.opacity = '0.3';
+  try {
+    const r = await fetch(`${API_BASE}/speak`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ text: text.substring(0, 500), voice: 'leila' }),
+    });
+    if (r.ok) {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+      audio.onended = () => URL.revokeObjectURL(url);
+    }
+  } catch (e) {
+    console.error('TTS error:', e);
+  }
+  btn.style.opacity = '0.7';
+}
+
+// ── Voice recording (Web Speech API) ─────
+let recognition = null;
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = (e) => {
+    let transcript = '';
+    for (let i = 0; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    inputEl.value = transcript;
+    if (e.results[e.results.length - 1].isFinal) {
+      voiceBtn.classList.remove('recording');
+      send();
+    }
+  };
+
+  recognition.onend = () => voiceBtn.classList.remove('recording');
+  recognition.onerror = () => voiceBtn.classList.remove('recording');
+}
+
+voiceBtn.addEventListener('click', () => {
+  if (!recognition) {
+    alert('Speech recognition not supported in this browser. Try Chrome or Safari.');
+    return;
+  }
+  if (voiceBtn.classList.contains('recording')) {
+    recognition.stop();
+    voiceBtn.classList.remove('recording');
+  } else {
+    recognition.start();
+    voiceBtn.classList.add('recording');
+  }
+});
+
+// ── Input handling ───────────────────────
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  sendBtn.disabled = !inputEl.value.trim();
+});
+
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
+sendBtn.addEventListener('click', send);
+
+// ── Init ─────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 30000);
+inputEl.focus();
+</script>
+</body>
+</html>
