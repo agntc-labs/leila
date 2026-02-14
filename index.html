@@ -292,6 +292,9 @@ textarea::placeholder { color: #A8A29E; }
 }
 .btn-voice:hover { color: var(--accent); border-color: var(--accent); }
 .btn-voice.recording { color: #EF4444; border-color: #EF4444; animation: pulse 1s infinite; }
+.btn-voice.voice-mode { color: white; background: linear-gradient(135deg, #F59E0B, #D97706); border-color: transparent; }
+.btn-voice.voice-mode.recording { background: linear-gradient(135deg, #EF4444, #DC2626); }
+.btn-voice.voice-mode.playing { background: linear-gradient(135deg, #8B5CF6, #7C3AED); animation: pulse 1s infinite; }
 
 .btn-audio {
   background: none;
@@ -501,22 +504,33 @@ async function send() {
 }
 
 // ── TTS playback ─────────────────────────
+function playBase64Audio(b64) {
+  return new Promise((resolve, reject) => {
+    const bin = atob(b64);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    const blob = new Blob([buf], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+    audio.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    audio.play().catch(reject);
+  });
+}
+
 async function speakText(btn) {
   const text = btn.dataset.text;
   if (!text) return;
   btn.style.opacity = '0.3';
   try {
-    const r = await fetch(`${API_BASE}/speak`, {
+    const r = await fetch(`${API_BASE}/speak-response`, {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ text: text.substring(0, 500), voice: 'leila' }),
+      body: JSON.stringify({ prompt: text.substring(0, 500), model: 'auto' }),
     });
-    if (r.ok) {
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.play();
-      audio.onended = () => URL.revokeObjectURL(url);
+    const data = await r.json();
+    if (data.audio_base64) {
+      await playBase64Audio(data.audio_base64);
     }
   } catch (e) {
     console.error('TTS error:', e);
@@ -524,8 +538,11 @@ async function speakText(btn) {
   btn.style.opacity = '0.7';
 }
 
-// ── Voice recording (Web Speech API) ─────
+// ── Voice Mode (real-time conversation) ──
+let voiceMode = false;
 let recognition = null;
+let currentAudio = null;
+
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
@@ -541,12 +558,87 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     inputEl.value = transcript;
     if (e.results[e.results.length - 1].isFinal) {
       voiceBtn.classList.remove('recording');
-      send();
+      if (voiceMode) {
+        sendVoice(transcript);
+      } else {
+        send();
+      }
     }
   };
 
-  recognition.onend = () => voiceBtn.classList.remove('recording');
-  recognition.onerror = () => voiceBtn.classList.remove('recording');
+  recognition.onend = () => {
+    voiceBtn.classList.remove('recording');
+  };
+  recognition.onerror = () => {
+    voiceBtn.classList.remove('recording');
+  };
+}
+
+async function sendVoice(text) {
+  if (!text.trim() || isThinking) return;
+  addMessage('user', text);
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  sendBtn.disabled = true;
+  showThinking();
+  statusText.textContent = 'Thinking...';
+
+  try {
+    const r = await fetch(`${API_BASE}/speak-response`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        prompt: text,
+        model: 'auto',
+        conversation_id: conversationId,
+      }),
+    });
+    const data = await r.json();
+    removeThinking();
+
+    const response = data.response || '';
+    addMessage('leila', response, true);
+
+    // Auto-play audio response
+    if (data.audio_base64 && voiceMode) {
+      voiceBtn.classList.add('playing');
+      statusText.textContent = 'Speaking...';
+      try {
+        await playBase64Audio(data.audio_base64);
+      } catch (e) {
+        console.error('Audio playback error:', e);
+      }
+      voiceBtn.classList.remove('playing');
+
+      // Auto-listen for next input
+      if (voiceMode && recognition) {
+        setTimeout(() => {
+          statusText.textContent = 'Listening...';
+          voiceBtn.classList.add('recording');
+          recognition.start();
+        }, 400);
+      }
+    }
+  } catch (err) {
+    removeThinking();
+    addMessage('leila', `I can't reach my brain right now, Dad. Error: ${err.message}`);
+    if (voiceMode) exitVoiceMode();
+  }
+}
+
+function enterVoiceMode() {
+  voiceMode = true;
+  voiceBtn.classList.add('voice-mode');
+  statusText.textContent = 'Listening...';
+  voiceBtn.classList.add('recording');
+  recognition.start();
+}
+
+function exitVoiceMode() {
+  voiceMode = false;
+  voiceBtn.classList.remove('voice-mode', 'recording', 'playing');
+  statusText.textContent = 'Online';
+  try { recognition.stop(); } catch {}
 }
 
 voiceBtn.addEventListener('click', () => {
@@ -554,13 +646,25 @@ voiceBtn.addEventListener('click', () => {
     alert('Speech recognition not supported in this browser. Try Chrome or Safari.');
     return;
   }
-  if (voiceBtn.classList.contains('recording')) {
+  if (voiceMode) {
+    exitVoiceMode();
+  } else if (voiceBtn.classList.contains('recording')) {
     recognition.stop();
     voiceBtn.classList.remove('recording');
   } else {
-    recognition.start();
-    voiceBtn.classList.add('recording');
+    enterVoiceMode();
   }
+});
+
+// Double-tap to enter voice mode (single tap for one-shot)
+let lastTap = 0;
+voiceBtn.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    e.preventDefault();
+    if (!voiceMode) enterVoiceMode();
+  }
+  lastTap = now;
 });
 
 // ── Input handling ───────────────────────
